@@ -51,12 +51,10 @@ impl PrettyPrint for Eval {
                             if current.0.node_val.is_some() {
                                 let tok = current.0.node_val.unwrap();
                                 self.push_whitespace(&mut pretty);
-                                if tok.tok_type == Type::Oparen {
-                                    pretty.push(')');
-                                } else if tok.tok_type == Type::OpenList {
-                                    pretty.push('>');
-                                } else {
-                                    pretty.push_str(&tok.get_lexed());
+                                match tok.tok_type {
+                                    Type::Oparen => pretty.push(')'),
+                                    Type::OpenList => pretty.push('>'),
+                                    _ => pretty.push_str(&tok.get_lexed())
                                 }
                             }
                             pretty.push('\n');
@@ -155,16 +153,13 @@ impl Eval {
                             Some(mut parent) => {
                                 let new_index = current.1 + 1;
                                 parent.0.insert_child(current.0, current.1);
-                                match parent.0.child_count() > new_index {
-                                    true => {
-                                        let new_child = parent.0.get_child(new_index);
-                                        self.stack.push(parent);
-                                        self.stack.push((new_child.unwrap(), new_index));
-                                    },
-                                    false => {
-                                        self.stack.push(parent);
-                                        scope.evaluate_scope = true;
-                                    }
+                                if parent.0.child_count() > new_index {
+                                    let new_child = parent.0.get_child(new_index);
+                                    self.stack.push(parent);
+                                    self.stack.push((new_child.unwrap(), new_index));
+                                } else {
+                                    self.stack.push(parent);
+                                    scope.evaluate_scope = true;
                                 }
                             },
                             None => self.evaluated = true
