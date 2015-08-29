@@ -97,7 +97,7 @@ impl EvalTrait for Eval {
     fn eval(&mut self) {
         let mut scope = Scope::new_root();
         while !self.evaluated {
-            scope = self.eval_node(scope);
+            scope = self.eval_node(scope); // If scope says evaluate, evaluate.
         }
     }
 
@@ -126,28 +126,29 @@ impl Eval {
         }
     }
 
+    fn expand_function(&mut self, scope: &Scope) {
+
+    }
+
     fn eval_node(&mut self, mut scope: Scope) -> Scope {
         match self.stack.pop() {
             Some(mut current) => {
                 match current.0.get_child(0) {
                     Some(mut child) => {
                         self.stack.push(current);
-
-                        // if child.node_val.is_some() {
-                        //     let tok = child.node_val.unwrap();
-                        //     if tok.tok_type == Type::Oparen {
-                        //         self.push_whitespace(&mut pretty);
-                        //         pretty.push('(');
-                        //         pretty.push('\n');
-                        //     } else if tok.tok_type == Type::ListDelimiter {
-                        //         self.push_whitespace(&mut pretty);
-                        //         pretty.push('|');
-                        //         pretty.push('\n');
-                        //     }
-                        //     child.node_val = Some(tok);
-                        // }
-
-                        self.stack.push((child, 0));
+                        if child.node_val.is_some() {
+                            let tok = child.node_val.unwrap();
+                            if tok.tok_type == Type::Func {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                                self.expand_function(&scope);
+                            } else {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                            }
+                        } else {
+                            self.stack.push((child, 0));
+                        }
                     },
                     None => {
                         match self.stack.pop() {
@@ -174,20 +175,19 @@ impl Eval {
             None => {
                 match self.ast.get_child(0) {
                     Some(mut child) => {
-                        // if child.node_val.is_some() {
-                        //     let tok = child.node_val.unwrap();
-                        //     if tok.tok_type == Type::Oparen {
-                        //         self.push_whitespace(&mut pretty);
-                        //         pretty.push('(');
-                        //         pretty.push('\n');
-                        //     } else if tok.tok_type == Type::ListDelimiter {
-                        //         self.push_whitespace(&mut pretty);
-                        //         pretty.push('|');
-                        //         pretty.push('\n');
-                        //     }
-                        //     child.node_val = Some(tok);
-                        // }
-                        self.stack.push((child, 0));
+                        if child.node_val.is_some() {
+                            let tok = child.node_val.unwrap();
+                            if tok.tok_type == Type::Func {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                                self.expand_function(&scope);
+                            } else {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                            }
+                        } else {
+                            self.stack.push((child, 0));
+                        }
                     },
                     None => self.evaluated = true
                 }
