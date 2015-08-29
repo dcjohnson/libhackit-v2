@@ -1,0 +1,4 @@
+[package]
+name = "libhackit-v2"
+version = "0.1.0"
+authors = ["Dylan Conrad Johnson <djohnson@ancestry.com>"]

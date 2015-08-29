@@ -1,0 +1,61 @@
+use token::Token;
+
+#[derive(Clone)]
+pub struct Ast {
+    pub node_val: Option<Token>,
+    child_nodes: Vec<Ast>
+}
+
+pub trait AstTrait {
+    fn add_child(&mut self, ast: Ast);
+    fn pop_child(&mut self) -> Option<Ast>;
+    fn get_child(&mut self, index: usize) -> Option<Ast>;
+    fn insert_child(&mut self, child: Ast, index: usize) -> bool;
+    fn child_count(&self) -> usize;
+}
+
+impl AstTrait for Ast {
+    fn add_child(&mut self, ast: Ast) {
+        self.child_nodes.push(ast);
+    }
+
+    fn pop_child(&mut self) -> Option<Ast> {
+        self.child_nodes.pop()
+    }
+
+    fn get_child(&mut self, index: usize) -> Option<Ast> {
+        match self.child_nodes.len() > index {
+            true => Some(self.child_nodes.remove(index)),
+            false => None
+        }
+    }
+
+    fn insert_child(&mut self, child: Ast, index: usize) -> bool {
+        if self.child_nodes.len() >= index {
+            self.child_nodes.insert(index, child);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn child_count(&self) -> usize {
+        self.child_nodes.len()
+    }
+}
+
+impl Ast {
+    pub fn new(node: Token) -> Self {
+        Ast {
+            node_val: Some(node),
+            child_nodes: Vec::new()
+        }
+    }
+
+    pub fn new_null() -> Self {
+        Ast {
+            node_val: None,
+            child_nodes: Vec::new()
+        }
+    }
+}
