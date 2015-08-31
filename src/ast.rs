@@ -1,4 +1,4 @@
-use token::Token;
+use token::{Token, Type};
 
 #[derive(Clone)]
 pub struct Ast {
@@ -56,6 +56,18 @@ impl Ast {
         Ast {
             node_val: None,
             child_nodes: Vec::new()
+        }
+    }
+
+    pub fn is_function(&self) -> bool {
+        match self.node_val {
+            Some(ref tok) => {
+                match tok.tok_type {
+                    Type::Func => true,
+                    _ => false
+                }
+            },
+            None => false
         }
     }
 }

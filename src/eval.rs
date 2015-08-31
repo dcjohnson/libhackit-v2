@@ -1,5 +1,5 @@
 use ast::{Ast, AstTrait};
-use token::{TokenTrait, Type};
+use token::{Token, TokenTrait, Type};
 
 pub struct Eval {
     ast: Ast,
@@ -124,7 +124,22 @@ impl Eval {
         }
     }
 
-    fn expand_function(&mut self, scope: &Scope) {
+    fn expand_function(&mut self, scope: &Scope) -> bool {
+        match self.stack.pop() {
+            Some(mut current) => {
+                match current.0.is_function() {
+                    true => {
+                        self.inject_params(scope);
+                        true
+                    },
+                    false => false
+                }
+            },
+            None => false
+        }
+    }
+
+    fn inject_params(&self, scope: &Scope) {
 
     }
 
@@ -197,13 +212,14 @@ impl Eval {
 
 struct Scope {
     pub parent: Option<Box<Scope>>,
-    funcs: Vec<Ast>,
+    funcs: Vec<Func>,
     in_builtin: bool,
     pub evaluate_scope: bool
 }
 
 impl Scope {
-    pub fn new(parent: Scope) -> Self {
+    pub fn new(parent: Scope) -> Self
+    {
         Scope {
             parent: Some(Box::new(parent)),
             funcs: Vec::new(),
@@ -212,6 +228,7 @@ impl Scope {
         }
     }
 
+
     pub fn new_root() -> Self {
         Scope {
             parent: None,
@@ -219,5 +236,33 @@ impl Scope {
             in_builtin: false,
             evaluate_scope: false
         }
+    }
+
+    pub fn push_func(&mut self, func: Func) {
+        self.funcs.push(func);
+    }
+
+    pub fn find_func(&mut self, tok: Token) -> Option<Func> {
+        None
+    }
+}
+
+struct Func {
+    name: String,
+    pub body: Ast,
+    pub params: Ast
+}
+
+impl Func {
+    pub fn new(name: String, body: Ast, params: Ast) -> Self {
+        Func {
+            name: name,
+            body: body,
+            params: params
+        }
+    }
+
+    pub fn get_name(&self) -> String {
+        self.name.clone()
     }
 }

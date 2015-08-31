@@ -16,12 +16,10 @@ pub enum Type {
 
 impl Type {
     pub fn is_matching_close(&self, matching: Type) -> bool {
-        if *self == Type::Oparen && matching == Type::Cparen {
-            true
-        } else if *self == Type::OpenList && matching == Type::CloseList {
-            true
-        } else {
-            false
+        match *self {
+            Type::Oparen => matching == Type::Cparen,
+            Type::OpenList => matching == Type::CloseList,
+            _ => false
         }
     }
 }
