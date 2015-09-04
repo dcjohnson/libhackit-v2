@@ -239,12 +239,28 @@ impl Scope {
         }
     }
 
-    pub fn push_func(&mut self, func: Func) {
-        self.funcs.push(func);
+    pub fn insert_func(&mut self, func: Func) {
+        if self.find_func(func.get_name()).is_none() {
+            let loc = self.funcs.binary_search(&func);
+            if loc.is_err() {
+                self.funcs.insert(loc.unwrap(), func);
+            }
+        }
     }
 
-    pub fn find_func(&mut self, tok: Token) -> Option<Func> {
-        None
+    pub fn find_func(&mut self, tok_str: &String) -> Option<Func> {
+        let loc = self.funcs.binary_search_by(|func| {
+            tok_str.cmp(func.get_name())
+        });
+        match loc {
+            Ok(index) => Some(self.funcs.remove(index)),
+            _ => {
+                match self.parent {
+                    Some(ref mut parent) => parent.find_func(tok_str),
+                    None => None
+                }
+            }
+        }
     }
 }
 
