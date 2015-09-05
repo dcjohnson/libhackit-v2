@@ -7,15 +7,17 @@ pub struct Ast {
 }
 
 pub trait AstTrait {
-    fn add_child(&mut self, ast: Ast);
+    fn push_child(&mut self, ast: Ast);
     fn pop_child(&mut self) -> Option<Ast>;
     fn get_child(&mut self, index: usize) -> Option<Ast>;
     fn insert_child(&mut self, child: Ast, index: usize) -> bool;
     fn child_count(&self) -> usize;
+    fn dump_children(&mut self) -> Vec<Ast>;
+    fn clone_children(&self) -> Vec<Ast>;
 }
 
 impl AstTrait for Ast {
-    fn add_child(&mut self, ast: Ast) {
+    fn push_child(&mut self, ast: Ast) {
         self.child_nodes.push(ast);
     }
 
@@ -41,6 +43,16 @@ impl AstTrait for Ast {
 
     fn child_count(&self) -> usize {
         self.child_nodes.len()
+    }
+
+    fn dump_children(&mut self) -> Vec<Ast> {
+        let children = self.child_nodes.clone();
+        self.child_nodes.clear();
+        children
+    }
+
+    fn clone_children(&self) -> Vec<Ast> {
+        self.child_nodes.clone()
     }
 }
 

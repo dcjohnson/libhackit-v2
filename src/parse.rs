@@ -65,7 +65,7 @@ impl Parser {
                             None => false
                         };
                         if should_push {
-                            parent.add_child(child);
+                            parent.push_child(child);
                             self.stack.push(parent);
                         }
                         should_push
@@ -82,7 +82,7 @@ impl Parser {
             Some(mut node) => {
                 let should_push = node.node_val.is_some();
                 if should_push {
-                    node.add_child(Ast::new(token));
+                    node.push_child(Ast::new(token));
                     self.stack.push(node);
                 }
                 should_push

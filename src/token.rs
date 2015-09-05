@@ -84,6 +84,15 @@ impl Token {
         tok
     }
 
+    pub fn new_preset(lexed: String, tok_type: Type) -> Self {
+        Token {
+            lexed: lexed,
+            tok_type: tok_type,
+            is_lexed: true,
+            must_append: false
+        }
+    }
+
     fn make_error(&mut self) {
         self.tok_type = Type::Error;
         self.status_true();

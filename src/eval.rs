@@ -1,5 +1,6 @@
 use ast::{Ast, AstTrait};
 use token::{Token, TokenTrait, Type};
+use builtins;
 use std::cmp::Ordering;
 
 pub struct Eval {
@@ -131,10 +132,7 @@ impl Eval {
                 match current.0.is_function() {
                     true => {
                         match scope.find_func(&current.0.node_val.unwrap().get_lexed()) {
-                            Some(ref func) => {
-                                self.inject_params(func);
-                                true
-                            },
+                            Some(ref func) => self.inject_params(func),
                             None => false
                         }
                     },
@@ -145,8 +143,20 @@ impl Eval {
         }
     }
 
-    fn inject_params(&mut self, func: &Func) {
-        
+    fn inject_params(&mut self, func: &Func) -> bool {
+        match self.stack.pop() {
+            Some(mut current) => {
+                let mut current_children = current.0.dump_children();
+                let func_children = func.params.clone_children();
+                for child in func_children.into_iter() {
+                    current.0.push_child(builtins::generate_set_ast(child.node_val.unwrap(), current_children.remove(0)));
+                }
+                current.0.push_child(func.body.clone());
+                self.stack.push(current);
+                true
+            },
+            None => false
+        }
     }
 
     fn eval_node(&mut self, mut scope: Scope) -> Scope {
@@ -160,7 +170,9 @@ impl Eval {
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
-                                self.expand_function(&mut scope);
+                                if !self.expand_function(&mut scope) {
+                                    // evaluate the builtin, if it exists
+                                }
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
@@ -196,7 +208,9 @@ impl Eval {
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
-                                self.expand_function(&mut scope);
+                                if !self.expand_function(&mut scope) {
+                                    // evaluate the builtin, if it exists
+                                }
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
