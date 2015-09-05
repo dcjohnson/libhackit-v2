@@ -125,13 +125,18 @@ impl Eval {
         }
     }
 
-    fn expand_function(&mut self, scope: &Scope) -> bool {
+    fn expand_function(&mut self, scope: &mut Scope) -> bool {
         match self.stack.pop() {
             Some(mut current) => {
                 match current.0.is_function() {
                     true => {
-                        self.inject_params(scope);
-                        true
+                        match scope.find_func(&current.0.node_val.unwrap().get_lexed()) {
+                            Some(ref func) => {
+                                self.inject_params(func);
+                                true
+                            },
+                            None => false
+                        }
                     },
                     false => false
                 }
@@ -140,8 +145,8 @@ impl Eval {
         }
     }
 
-    fn inject_params(&self, scope: &Scope) {
-
+    fn inject_params(&mut self, func: &Func) {
+        
     }
 
     fn eval_node(&mut self, mut scope: Scope) -> Scope {
@@ -155,7 +160,7 @@ impl Eval {
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
-                                self.expand_function(&scope);
+                                self.expand_function(&mut scope);
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
@@ -191,7 +196,7 @@ impl Eval {
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
-                                self.expand_function(&scope);
+                                self.expand_function(&mut scope);
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
