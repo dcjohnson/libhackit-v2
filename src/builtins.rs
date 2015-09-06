@@ -1,18 +1,34 @@
 use ast::{Ast, AstTrait};
 use token::{Type, Token, TokenTrait};
+use eval::{Scope, Func};
 use std::borrow::Borrow;
 
 pub enum EvalResult<T: AstTrait> {
     Push(T),
+    Insert(T),
     Ignore,
     Error
 }
 
 impl<T: AstTrait> EvalResult<T> {
-    pub fn unwrap(self) -> T {
+    pub fn unwrap_push(self) -> T {
         match self {
             EvalResult::Push(res) => res,
             _ => panic!()
+        }
+    }
+
+    pub fn unwrap_insert(self) -> T {
+        match self {
+            EvalResult::Insert(res) => res,
+            _ => panic!()
+        }
+    }
+
+    pub fn is_insert(&self) -> bool {
+        match *self {
+            EvalResult::Insert(_) => true,
+            _ => false
         }
     }
 
@@ -31,14 +47,14 @@ impl<T: AstTrait> EvalResult<T> {
     }
 }
 
-fn print(ast: &mut Ast) -> EvalResult<Ast> {
+fn print(mut ast: Ast) -> EvalResult<Ast> {
     for child in ast.dump_children().into_iter() {
         print!("{}", child.node_val.unwrap().get_lexed());
     }
     EvalResult::Ignore
 }
 
-fn println(ast: &mut Ast) -> EvalResult<Ast> {
+fn println(mut ast: Ast) -> EvalResult<Ast> {
     for child in ast.dump_children().into_iter() {
         println!("{}", child.node_val.unwrap().get_lexed());
     }
@@ -67,13 +83,32 @@ fn add(mut ast: Ast) -> EvalResult<Ast> {
     EvalResult::Push(ast)
 }
 
-pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
+fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
+    let mut children = ast.dump_children();
+    let name = children.pop().unwrap().node_val.unwrap().get_lexed();
+    if {
+        let func_option = scope.find_func(&name);
+        if func_option.is_some() {
+            func_option.unwrap().reset(children.remove(0), children.remove(0));
+            false
+        } else {
+            true
+        }
+    } {
+        scope.insert_func_no_search(Func::new(name, children.remove(0), children.remove(0)));
+    }
+    EvalResult::Ignore
+}
+
+pub fn evaluate_builtin(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     match ast.get_child(0) {
         Some(child) => {
             match child.node_val.unwrap().get_lexed().borrow() {
-                "print" => print(&mut ast),
-                "println" => println(&mut ast),
+                "print" => print(ast),
+                "println" => println(ast),
                 "add" => add(ast),
+                "set" => set(ast, scope),
+                "params" => EvalResult::Insert(ast),
                 _ => EvalResult::Error
             }
         },

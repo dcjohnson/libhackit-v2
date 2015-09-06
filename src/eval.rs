@@ -1,6 +1,7 @@
 use ast::{Ast, AstTrait};
 use token::{TokenTrait, Type};
 use builtins;
+use std::ops::IndexMut;
 use std::cmp::Ordering;
 
 pub struct Eval {
@@ -133,7 +134,7 @@ impl Eval {
                     true => {
                         let unwraped_current = current.0.node_val.unwrap();
                         match scope.find_func(&unwraped_current.get_lexed()) {
-                            Some(ref func) => self.inject_params(func),
+                            Some(func) => self.inject_params(func),
                             None => {
                                 current.0.node_val = Some(unwraped_current);
                                 self.stack.push(current);
@@ -193,11 +194,23 @@ impl Eval {
                                                     self.stack.push((new_child, 1));
                                                 },
                                                 None => {
-                                                    let result = builtins::evaluate_builtin(parent.0);
+                                                    let result = builtins::evaluate_builtin(parent.0, &mut scope);
                                                     if result.is_push() {
-                                                        self.stack.push((result.unwrap(), parent.1));
+                                                        self.stack.push((result.unwrap_push(), parent.1));
                                                     } else if result.is_error() {
                                                         self.evaluated = true;
+                                                    } else if result.is_insert() {
+                                                        match self.stack.pop() {
+                                                            Some(mut new_parent) => {
+                                                                parent.0 = result.unwrap_insert();
+                                                                let new_index = parent.1 + 1;
+                                                                new_parent.0.insert_child(parent.0, parent.1);
+                                                                let new = (new_parent.0.get_child(new_index).unwrap(), new_index);
+                                                                self.stack.push(new_parent);
+                                                                self.stack.push(new);
+                                                            },
+                                                            None => self.evaluated = true
+                                                        }
                                                     }
                                                 }
                                             }
@@ -227,9 +240,9 @@ impl Eval {
                                     self.stack.push(parent);
                                     self.stack.push((new_child.unwrap(), new_index));
                                 } else {
-                                    let result = builtins::evaluate_builtin(parent.0);
+                                    let result = builtins::evaluate_builtin(parent.0, &mut scope);
                                     if result.is_push() {
-                                        self.stack.push((result.unwrap(), parent.1));
+                                        self.stack.push((result.unwrap_push(), parent.1));
                                     } else if result.is_error() {
                                         self.evaluated = true;
                                     }
@@ -263,11 +276,23 @@ impl Eval {
                                                     self.stack.push((new_child, 1));
                                                 },
                                                 None => {
-                                                    let result = builtins::evaluate_builtin(parent.0);
+                                                    let result = builtins::evaluate_builtin(parent.0, &mut scope);
                                                     if result.is_push() {
-                                                        self.stack.push((result.unwrap(), parent.1));
+                                                        self.stack.push((result.unwrap_push(), parent.1));
                                                     } else if result.is_error() {
                                                         self.evaluated = true;
+                                                    } else if result.is_insert() {
+                                                        match self.stack.pop() {
+                                                            Some(mut new_parent) => {
+                                                                parent.0 = result.unwrap_insert();
+                                                                let new_index = parent.1 + 1;
+                                                                new_parent.0.insert_child(parent.0, parent.1);
+                                                                let new = (new_parent.0.get_child(new_index).unwrap(), new_index);
+                                                                self.stack.push(new_parent);
+                                                                self.stack.push(new);
+                                                            },
+                                                            None => self.evaluated = true
+                                                        }
                                                     }
                                                 }
                                             }
@@ -298,7 +323,7 @@ impl Eval {
     }
 }
 
-struct Scope {
+pub struct Scope {
     pub parent: Option<Box<Scope>>,
     funcs: Vec<Func>,
     pub evaluate_scope: bool
@@ -325,19 +350,23 @@ impl Scope {
 
     pub fn insert_func(&mut self, func: Func) {
         if self.find_func(func.get_name()).is_none() {
-            let loc = self.funcs.binary_search(&func);
-            if loc.is_err() {
-                self.funcs.insert(loc.unwrap(), func);
-            }
+            self.insert_func_no_search(func);
         }
     }
 
-    pub fn find_func(&mut self, tok_str: &String) -> Option<Func> {
+    pub fn insert_func_no_search(&mut self, func: Func) {
+        let loc = self.funcs.binary_search(&func);
+        if loc.is_err() {
+            self.funcs.insert(loc.unwrap_err(), func);
+        }
+    }
+
+    pub fn find_func(&mut self, tok_str: &String) -> Option<&mut Func> {
         let loc = self.funcs.binary_search_by(|func| {
             tok_str.cmp(func.get_name())
         });
         match loc {
-            Ok(index) => Some(self.funcs.remove(index)),
+            Ok(index) => Some(self.funcs.index_mut(index)),
             _ => {
                 match self.parent {
                     Some(ref mut parent) => parent.find_func(tok_str),
@@ -348,7 +377,7 @@ impl Scope {
     }
 }
 
-struct Func {
+pub struct Func {
     name: String,
     pub body: Ast,
     pub params: Ast
@@ -365,6 +394,11 @@ impl Func {
 
     pub fn get_name(&self) -> &String {
         &self.name
+    }
+
+    pub fn reset(&mut self, body: Ast, params: Ast) {
+        self.body = body;
+        self.params = params;
     }
 }
 
