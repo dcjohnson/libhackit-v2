@@ -185,12 +185,24 @@ impl Eval {
                                     None => panic!()
                                 }
                                 if !self.expand_function(&mut scope) {
-                                    let func = self.stack.pop().unwrap();
-                                    let result = builtins::evaluate_builtin(func.0);
-                                    if result.is_push() {
-                                        self.stack.push((result.unwrap(), func.1));
-                                    } else if result.is_error() {
-                                        self.evaluated = true;
+                                    match self.stack.pop() {
+                                        Some(mut parent) => {
+                                            match parent.0.get_child(1) {
+                                                Some(new_child) => {
+                                                    self.stack.push(parent);
+                                                    self.stack.push((new_child, 1));
+                                                },
+                                                None => {
+                                                    let result = builtins::evaluate_builtin(parent.0);
+                                                    if result.is_push() {
+                                                        self.stack.push((result.unwrap(), parent.1));
+                                                    } else if result.is_error() {
+                                                        self.evaluated = true;
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        None => self.evaluated = true
                                     }
                                 }
                             } else if tok.tok_type == Type::Cparen {
@@ -215,8 +227,12 @@ impl Eval {
                                     self.stack.push(parent);
                                     self.stack.push((new_child.unwrap(), new_index));
                                 } else {
-                                    self.stack.push(parent);
-                                    scope.evaluate_scope = true;
+                                    let result = builtins::evaluate_builtin(parent.0);
+                                    if result.is_push() {
+                                        self.stack.push((result.unwrap(), parent.1));
+                                    } else if result.is_error() {
+                                        self.evaluated = true;
+                                    }
                                 }
                             },
                             None => self.evaluated = true
@@ -239,12 +255,24 @@ impl Eval {
                                     None => panic!()
                                 }
                                 if !self.expand_function(&mut scope) {
-                                    let func = self.stack.pop().unwrap();
-                                    let result = builtins::evaluate_builtin(func.0);
-                                    if result.is_push() {
-                                        self.stack.push((result.unwrap(), func.1));
-                                    } else if result.is_error() {
-                                        self.evaluated = true;
+                                    match self.stack.pop() {
+                                        Some(mut parent) => {
+                                            match parent.0.get_child(1) {
+                                                Some(new_child) => {
+                                                    self.stack.push(parent);
+                                                    self.stack.push((new_child, 1));
+                                                },
+                                                None => {
+                                                    let result = builtins::evaluate_builtin(parent.0);
+                                                    if result.is_push() {
+                                                        self.stack.push((result.unwrap(), parent.1));
+                                                    } else if result.is_error() {
+                                                        self.evaluated = true;
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        None => self.evaluated = true
                                     }
                                 }
                             } else if tok.tok_type == Type::Cparen {

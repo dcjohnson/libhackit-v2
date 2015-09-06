@@ -33,9 +33,38 @@ impl<T: AstTrait> EvalResult<T> {
 
 fn print(ast: &mut Ast) -> EvalResult<Ast> {
     for child in ast.dump_children().into_iter() {
+        print!("{}", child.node_val.unwrap().get_lexed());
+    }
+    EvalResult::Ignore
+}
+
+fn println(ast: &mut Ast) -> EvalResult<Ast> {
+    for child in ast.dump_children().into_iter() {
         println!("{}", child.node_val.unwrap().get_lexed());
     }
     EvalResult::Ignore
+}
+
+fn add(mut ast: Ast) -> EvalResult<Ast> {
+    let mut int: i64 = 0;
+    let mut double: f64 = 0.0;
+    for child in ast.dump_children().into_iter() {
+        let child_val = child.node_val.unwrap().get_lexed();
+        match child_val.parse::<i64>() {
+            Ok(val) => int += val,
+            _ => {
+                match child_val.parse::<f64>() {
+                    Ok(val) => double += val,
+                    _ => return EvalResult::Error
+                }
+            }
+        }
+    }
+    ast.node_val = Some(match double == 0.0 {
+        true => Token::new_preset(int.to_string(), Type::Number),
+        false => Token::new_preset((double + int as f64).to_string(), Type::Number)
+    });
+    EvalResult::Push(ast)
 }
 
 pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
@@ -43,6 +72,8 @@ pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
         Some(child) => {
             match child.node_val.unwrap().get_lexed().borrow() {
                 "print" => print(&mut ast),
+                "println" => println(&mut ast),
+                "add" => add(ast),
                 _ => EvalResult::Error
             }
         },
