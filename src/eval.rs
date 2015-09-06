@@ -131,9 +131,14 @@ impl Eval {
             Some(mut current) => {
                 match current.0.is_function() {
                     true => {
-                        match scope.find_func(&current.0.node_val.unwrap().get_lexed()) {
+                        let unwraped_current = current.0.node_val.unwrap();
+                        match scope.find_func(&unwraped_current.get_lexed()) {
                             Some(ref func) => self.inject_params(func),
-                            None => false
+                            None => {
+                                current.0.node_val = Some(unwraped_current);
+                                self.stack.push(current);
+                                false
+                            }
                         }
                     },
                     false => {
@@ -174,7 +179,13 @@ impl Eval {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
                                 if !self.expand_function(&mut scope) {
-                                    // evaluate the builtin, if it exists
+                                    let mut func = self.stack.pop().unwrap();
+                                    let result = builtins::evaluate_builtin(func.0);
+                                    if result.is_push() {
+                                        self.stack.push((result.unwrap(), func.1));
+                                    } else if result.is_error() {
+                                        self.evaluated = true;
+                                    }
                                 }
                             } else {
                                 child.node_val = Some(tok);
@@ -212,7 +223,13 @@ impl Eval {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
                                 if !self.expand_function(&mut scope) {
-                                    // evaluate the builtin, if it exists
+                                    let mut func = self.stack.pop().unwrap();
+                                    let result = builtins::evaluate_builtin(func.0);
+                                    if result.is_push() {
+                                        self.stack.push((result.unwrap(), func.1));
+                                    } else if result.is_error() {
+                                        self.evaluated = true;
+                                    }
                                 }
                             } else {
                                 child.node_val = Some(tok);
