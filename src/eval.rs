@@ -177,7 +177,13 @@ impl Eval {
                             let tok = child.node_val.unwrap();
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
-                                self.stack.push((child, 0));
+                                match self.stack.pop() {
+                                    Some(mut parent) => {
+                                        parent.0.insert_child(child, 0);
+                                        self.stack.push(parent);
+                                    },
+                                    None => panic!()
+                                }
                                 if !self.expand_function(&mut scope) {
                                     let mut func = self.stack.pop().unwrap();
                                     let result = builtins::evaluate_builtin(func.0);
@@ -187,6 +193,10 @@ impl Eval {
                                         self.evaluated = true;
                                     }
                                 }
+                            } else if tok.tok_type == Type::Cparen {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                                scope = Scope::new(scope);
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
@@ -221,7 +231,13 @@ impl Eval {
                             let tok = child.node_val.unwrap();
                             if tok.tok_type == Type::Func {
                                 child.node_val = Some(tok);
-                                self.stack.push((child, 0));
+                                match self.stack.pop() {
+                                    Some(mut parent) => {
+                                        parent.0.insert_child(child, 0);
+                                        self.stack.push(parent);
+                                    },
+                                    None => panic!()
+                                }
                                 if !self.expand_function(&mut scope) {
                                     let mut func = self.stack.pop().unwrap();
                                     let result = builtins::evaluate_builtin(func.0);
@@ -231,6 +247,10 @@ impl Eval {
                                         self.evaluated = true;
                                     }
                                 }
+                            } else if tok.tok_type == Type::Cparen {
+                                child.node_val = Some(tok);
+                                self.stack.push((child, 0));
+                                scope = Scope::new(scope);
                             } else {
                                 child.node_val = Some(tok);
                                 self.stack.push((child, 0));
