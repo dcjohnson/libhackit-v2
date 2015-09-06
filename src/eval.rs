@@ -1,5 +1,5 @@
 use ast::{Ast, AstTrait};
-use token::{Token, TokenTrait, Type};
+use token::{TokenTrait, Type};
 use builtins;
 use std::cmp::Ordering;
 
@@ -185,7 +185,7 @@ impl Eval {
                                     None => panic!()
                                 }
                                 if !self.expand_function(&mut scope) {
-                                    let mut func = self.stack.pop().unwrap();
+                                    let func = self.stack.pop().unwrap();
                                     let result = builtins::evaluate_builtin(func.0);
                                     if result.is_push() {
                                         self.stack.push((result.unwrap(), func.1));
@@ -239,7 +239,7 @@ impl Eval {
                                     None => panic!()
                                 }
                                 if !self.expand_function(&mut scope) {
-                                    let mut func = self.stack.pop().unwrap();
+                                    let func = self.stack.pop().unwrap();
                                     let result = builtins::evaluate_builtin(func.0);
                                     if result.is_push() {
                                         self.stack.push((result.unwrap(), func.1));
@@ -273,7 +273,6 @@ impl Eval {
 struct Scope {
     pub parent: Option<Box<Scope>>,
     funcs: Vec<Func>,
-    in_builtin: bool,
     pub evaluate_scope: bool
 }
 
@@ -283,7 +282,6 @@ impl Scope {
         Scope {
             parent: Some(Box::new(parent)),
             funcs: Vec::new(),
-            in_builtin: false,
             evaluate_scope: false
         }
     }
@@ -293,7 +291,6 @@ impl Scope {
         Scope {
             parent: None,
             funcs: Vec::new(),
-            in_builtin: false,
             evaluate_scope: false
         }
     }
