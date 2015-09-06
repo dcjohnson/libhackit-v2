@@ -136,7 +136,10 @@ impl Eval {
                             None => false
                         }
                     },
-                    false => false
+                    false => {
+                        self.stack.push(current);
+                        false
+                    }
                 }
             },
             None => false
