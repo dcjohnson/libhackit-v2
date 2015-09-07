@@ -204,35 +204,40 @@ impl Eval {
         }
     }
 
+    fn handle_new_node(&mut self, mut scope: Scope, mut child: Ast) -> Scope {
+        if child.node_val.is_some() {
+            let tok = child.node_val.unwrap();
+            if tok.tok_type == Type::Func {
+                child.node_val = Some(tok);
+                match self.stack.pop() {
+                    Some(mut parent) => {
+                        parent.0.insert_child(child, 0);
+                        self.stack.push(parent);
+                    },
+                    None => panic!()
+                }
+                self.handle_function(&mut scope);
+            } else if tok.tok_type == Type::Cparen {
+                child.node_val = Some(tok);
+                self.stack.push((child, 0));
+                scope = Scope::new(scope);
+            } else {
+                child.node_val = Some(tok);
+                self.stack.push((child, 0));
+            }
+        } else {
+            self.stack.push((child, 0));
+        }
+        scope
+    }
+
     fn eval_node(&mut self, mut scope: Scope) -> Scope {
         match self.stack.pop() {
             Some(mut current) => {
                 match current.0.get_child(0) {
-                    Some(mut child) => {
+                    Some(child) => {
                         self.stack.push(current);
-                        if child.node_val.is_some() {
-                            let tok = child.node_val.unwrap();
-                            if tok.tok_type == Type::Func {
-                                child.node_val = Some(tok);
-                                match self.stack.pop() {
-                                    Some(mut parent) => {
-                                        parent.0.insert_child(child, 0);
-                                        self.stack.push(parent);
-                                    },
-                                    None => panic!()
-                                }
-                                self.handle_function(&mut scope);
-                            } else if tok.tok_type == Type::Cparen {
-                                child.node_val = Some(tok);
-                                self.stack.push((child, 0));
-                                scope = Scope::new(scope);
-                            } else {
-                                child.node_val = Some(tok);
-                                self.stack.push((child, 0));
-                            }
-                        } else {
-                            self.stack.push((child, 0));
-                        }
+                        scope = self.handle_new_node(scope, child);
                     },
                     None => {
                         match self.stack.pop() {
@@ -259,31 +264,7 @@ impl Eval {
             },
             None => {
                 match self.ast.get_child(0) {
-                    Some(mut child) => {
-                        if child.node_val.is_some() {
-                            let tok = child.node_val.unwrap();
-                            if tok.tok_type == Type::Func {
-                                child.node_val = Some(tok);
-                                match self.stack.pop() {
-                                    Some(mut parent) => {
-                                        parent.0.insert_child(child, 0);
-                                        self.stack.push(parent);
-                                    },
-                                    None => panic!()
-                                }
-                                self.handle_function(&mut scope);
-                            } else if tok.tok_type == Type::Cparen {
-                                child.node_val = Some(tok);
-                                self.stack.push((child, 0));
-                                scope = Scope::new(scope);
-                            } else {
-                                child.node_val = Some(tok);
-                                self.stack.push((child, 0));
-                            }
-                        } else {
-                            self.stack.push((child, 0));
-                        }
-                    },
+                    Some(child) => scope = self.handle_new_node(scope, child);,
                     None => self.evaluated = true
                 }
             }
