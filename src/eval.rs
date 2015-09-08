@@ -98,7 +98,7 @@ impl EvalTrait for Eval {
     fn eval(&mut self) {
         let mut scope = Scope::new_root();
         while !self.evaluated {
-            scope = self.eval_node(scope); // If scope says evaluate, evaluate.
+            scope = self.eval_node(scope);
         }
     }
 
@@ -132,11 +132,13 @@ impl Eval {
             Some(mut current) => {
                 match current.0.is_function() {
                     true => {
-                        let unwraped_current = current.0.node_val.unwrap();
-                        match scope.find_func(&unwraped_current.get_lexed()) {
+                        let mut child = current.0.get_child(0).unwrap();
+                        let node_val = child.node_val.unwrap();
+                        match scope.find_func(&node_val.get_lexed()) {
                             Some(func) => self.inject_params(func),
                             None => {
-                                current.0.node_val = Some(unwraped_current);
+                                child.node_val = Some(node_val);
+                                current.0.insert_child(child, 0);
                                 self.stack.push(current);
                                 false
                             }
@@ -172,31 +174,84 @@ impl Eval {
         if !self.expand_function(scope) {
             match self.stack.pop() {
                 Some(mut parent) => {
-                    match parent.0.get_child(1) {
-                        Some(new_child) => {
-                            self.stack.push(parent);
-                            self.stack.push((new_child, 1));
-                        },
-                        None => {
-                            let result = builtins::evaluate_builtin(parent.0, scope);
-                            if result.is_push() {
-                                self.stack.push((result.unwrap_push(), parent.1));
-                            } else if result.is_error() {
-                                self.evaluated = true;
-                            } else if result.is_insert() {
-                                match self.stack.pop() {
-                                    Some(mut new_parent) => {
-                                        parent.0 = result.unwrap_insert();
-                                        let new_index = parent.1 + 1;
-                                        new_parent.0.insert_child(parent.0, parent.1);
-                                        let new = (new_parent.0.get_child(new_index).unwrap(), new_index);
-                                        self.stack.push(new_parent);
-                                        self.stack.push(new);
-                                    },
-                                    None => self.evaluated = true
+                    let result = builtins::evaluate_set_funcs(parent.0);
+                    if result.is_skip() {
+                        parent.0 = result.unwrap_skip();
+                        match parent.0.get_child(1) {
+                            Some(new_child) => {
+                                self.stack.push(parent);
+                                self.stack.push((new_child, 1));
+                            },
+                            None => {
+                                let result = builtins::evaluate_builtin(parent.0, scope);
+                                if result.is_push() {
+                                    self.stack.push((result.unwrap_push(), parent.1));
+                                } else if result.is_error() {
+                                    self.evaluated = true;
+                                } else if result.is_insert() {
+                                    match self.stack.pop() {
+                                        Some(mut new_parent) => {
+                                            parent.0 = result.unwrap_insert();
+                                            let new_index = parent.1 + 1;
+                                            new_parent.0.insert_child(parent.0, parent.1);
+                                            let new = (new_parent.0.get_child(new_index).unwrap(), new_index);
+                                            self.stack.push(new_parent);
+                                            self.stack.push(new);
+                                        },
+                                        None => self.evaluated = true
+                                    }
                                 }
                             }
                         }
+                    } else if result.is_remove() {
+                        parent.0 = result.unwrap_remove();
+                        match self.stack.pop() {
+                            Some(mut func_head) => {
+                                let new_index = parent.1 + 1;
+                                func_head.0.insert_child(parent.0, parent.1);
+                                match func_head.0.get_child(new_index) {
+                                    Some(new_ast) => {
+                                        self.stack.push(func_head);
+                                        self.stack.push((new_ast, new_index));
+                                    },
+                                    None => self.stack.push(func_head)
+                                }
+                            },
+                            None => self.evaluated = true
+                        }
+                    } else if result.is_other() {
+                        let set_result = builtins::evaluate_set(result.unwrap_other(), scope);
+                        if set_result.is_insert() {
+                            parent.0 = set_result.unwrap_insert();
+                            match parent.0.get_child(1) {
+                                Some(new_child) => {
+                                    self.stack.push(parent);
+                                    self.stack.push((new_child, 1));
+                                },
+                                None => {
+                                    let result = builtins::evaluate_builtin(parent.0, scope);
+                                    if result.is_push() {
+                                        self.stack.push((result.unwrap_push(), parent.1));
+                                    } else if result.is_error() {
+                                        self.evaluated = true;
+                                    } else if result.is_insert() {
+                                        match self.stack.pop() {
+                                            Some(mut new_parent) => {
+                                                parent.0 = result.unwrap_insert();
+                                                let new_index = parent.1 + 1;
+                                                new_parent.0.insert_child(parent.0, parent.1);
+                                                let new = (new_parent.0.get_child(new_index).unwrap(), new_index);
+                                                self.stack.push(new_parent);
+                                                self.stack.push(new);
+                                            },
+                                            None => self.evaluated = true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        self.evaluated = true;
                     }
                 },
                 None => self.evaluated = true
@@ -217,7 +272,7 @@ impl Eval {
                     None => panic!()
                 }
                 self.handle_function(&mut scope);
-            } else if tok.tok_type == Type::Cparen {
+            } else if tok.tok_type == Type::Oparen {
                 child.node_val = Some(tok);
                 self.stack.push((child, 0));
                 scope = Scope::new(scope);
@@ -264,7 +319,7 @@ impl Eval {
             },
             None => {
                 match self.ast.get_child(0) {
-                    Some(child) => scope = self.handle_new_node(scope, child);,
+                    Some(child) => scope = self.handle_new_node(scope, child),
                     None => self.evaluated = true
                 }
             }
@@ -332,16 +387,16 @@ impl Scope {
 
 pub struct Func {
     name: String,
-    pub body: Ast,
-    pub params: Ast
+    pub params: Ast,
+    pub body: Ast
 }
 
 impl Func {
-    pub fn new(name: String, body: Ast, params: Ast) -> Self {
+    pub fn new(name: String, params: Ast, body: Ast) -> Self {
         Func {
             name: name,
-            body: body,
-            params: params
+            params: params,
+            body: body
         }
     }
 
@@ -349,9 +404,9 @@ impl Func {
         &self.name
     }
 
-    pub fn reset(&mut self, body: Ast, params: Ast) {
-        self.body = body;
+    pub fn reset(&mut self, params: Ast, body: Ast) {
         self.params = params;
+        self.body = body;
     }
 }
 

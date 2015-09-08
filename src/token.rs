@@ -93,6 +93,10 @@ impl Token {
         }
     }
 
+    pub fn set_lexed(&mut self, string: String) {
+        self.lexed = string;
+    }
+
     fn make_error(&mut self) {
         self.tok_type = Type::Error;
         self.status_true();

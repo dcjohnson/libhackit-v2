@@ -45,6 +45,71 @@ impl<T: AstTrait> EvalResult<T> {
             _ => false
         }
     }
+
+    pub fn is_ignore(&self) -> bool {
+        match *self {
+            EvalResult::Ignore => true,
+            _ => false
+        }
+    }
+}
+
+pub enum SetEval<T: AstTrait> {
+    Skip(T),
+    Remove(T),
+    Other(T),
+    Error
+}
+
+impl<T: AstTrait> SetEval<T> {
+    pub fn is_skip(&self) -> bool {
+        match *self {
+            SetEval::Skip(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_remove(&self) -> bool {
+        match *self {
+            SetEval::Remove(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_other(&self) -> bool {
+        match *self {
+            SetEval::Other(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        match *self {
+            SetEval::Error => true,
+            _ => false
+        }
+    }
+
+    pub fn unwrap_skip(self) -> T {
+        match self {
+            SetEval::Skip(t) => t,
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_remove(self) -> T {
+        match self {
+            SetEval::Remove(t) => t,
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_other(self) -> T {
+        match self {
+            SetEval::Other(t) => t,
+            _ => panic!()
+        }
+    }
 }
 
 fn print(mut ast: Ast) -> EvalResult<Ast> {
@@ -85,19 +150,61 @@ fn add(mut ast: Ast) -> EvalResult<Ast> {
 
 fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     let mut children = ast.dump_children();
-    let name = children.pop().unwrap().node_val.unwrap().get_lexed();
+    let name = children.remove(0).get_child(0).unwrap().node_val.unwrap().get_lexed();
     if {
-        let func_option = scope.find_func(&name);
-        if func_option.is_some() {
-            func_option.unwrap().reset(children.remove(0), children.remove(0));
-            false
-        } else {
-            true
+        match scope.find_func(&name) {
+            Some(func_option) => {
+                func_option.reset(children.remove(0).get_child(0).unwrap(), children.remove(0).get_child(0).unwrap());
+                false
+            },
+            None => true
         }
     } {
         scope.insert_func_no_search(Func::new(name, children.remove(0), children.remove(0)));
     }
     EvalResult::Ignore
+}
+
+pub fn evaluate_set_funcs(mut ast: Ast) -> SetEval<Ast> {
+    match ast.get_child(0) {
+        Some(mut child) => {
+            let mut node = child.node_val.unwrap();
+            match node.get_lexed().borrow() {
+                "set" => {
+                    node.set_lexed("seteval".to_string());
+                    child.node_val = Some(node);
+                    ast.insert_child(child, 0);
+                    SetEval::Skip(ast)
+                },
+                "name" => SetEval::Remove(ast),
+                "params" => SetEval::Remove(ast),
+                "body" => SetEval::Remove(ast.get_child(0).unwrap()),
+                _ => {
+                    child.node_val = Some(node);
+                    ast.insert_child(child, 0);
+                    SetEval::Other(ast)
+                }
+            }
+        },
+        None => SetEval::Error
+    }
+}
+
+pub fn evaluate_set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
+    match ast.get_child(0) {
+        Some(mut child) => {
+            let mut node = child.node_val.unwrap();
+            match node.get_lexed().borrow() {
+                "seteval" => set(ast, scope),
+                _ => {
+                    child.node_val = Some(node);
+                    ast.insert_child(child, 0);
+                    EvalResult::Insert(ast)
+                }
+            }
+        },
+        None => EvalResult::Error
+    }
 }
 
 pub fn evaluate_builtin(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
@@ -107,9 +214,7 @@ pub fn evaluate_builtin(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
                 "print" => print(ast),
                 "println" => println(ast),
                 "add" => add(ast),
-                "set" => set(ast, scope),
-                "params" => EvalResult::Insert(ast),
-                _ => EvalResult::Error
+                _ => EvalResult::Ignore
             }
         },
         None => EvalResult::Error

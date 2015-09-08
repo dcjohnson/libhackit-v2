@@ -71,13 +71,20 @@ impl Ast {
         }
     }
 
-    pub fn is_function(&self) -> bool {
-        match self.node_val {
-            Some(ref tok) => {
-                match tok.tok_type {
-                    Type::Func => true,
-                    _ => false
-                }
+    pub fn is_function(&mut self) -> bool {
+        match self.get_child(0) {
+            Some(child) => {
+                let result = match child.node_val {
+                    Some(ref tok) => {
+                        match tok.tok_type {
+                            Type::Func => true,
+                            _ => false
+                        }
+                    },
+                    None => false
+                };
+                self.insert_child(child, 0);
+                result
             },
             None => false
         }
