@@ -165,6 +165,10 @@ fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     EvalResult::Ignore
 }
 
+fn let_eval(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> { // Implement this when the other stuff is ready.
+    EvalResult::Ignore
+}
+
 pub fn evaluate_set_funcs(mut ast: Ast) -> SetEval<Ast> {
     match ast.get_child(0) {
         Some(mut child) => {
@@ -176,6 +180,12 @@ pub fn evaluate_set_funcs(mut ast: Ast) -> SetEval<Ast> {
                     ast.insert_child(child, 0);
                     SetEval::Skip(ast)
                 },
+                "let" => {
+                    node.set_lexed("leteval".to_string());
+                    child.node_val = Some(node);
+                    ast.insert_child(child, 0);
+                    SetEval::Skip(ast)
+                }
                 "name" => SetEval::Remove(ast),
                 "params" => SetEval::Remove(ast),
                 "body" => SetEval::Remove(ast.get_child(0).unwrap()),
@@ -196,6 +206,7 @@ pub fn evaluate_set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
             let mut node = child.node_val.unwrap();
             match node.get_lexed().borrow() {
                 "seteval" => set(ast, scope),
+                "leteval" => let_eval(ast, scope),
                 _ => {
                     child.node_val = Some(node);
                     ast.insert_child(child, 0);
@@ -207,7 +218,7 @@ pub fn evaluate_set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     }
 }
 
-pub fn evaluate_builtin(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
+pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
     match ast.get_child(0) {
         Some(child) => {
             match child.node_val.unwrap().get_lexed().borrow() {
@@ -221,9 +232,9 @@ pub fn evaluate_builtin(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     }
 }
 
-pub fn generate_set_ast(tok: Token, ast: Ast) -> Ast {
-    let mut func_ast = Ast::new(Token::new_preset('('.to_string(), Type::Cparen));
-    func_ast.push_child(Ast::new(Token::new_preset("set".to_string(), Type::Func)));
+pub fn generate_let_ast(tok: Token, ast: Ast) -> Ast { // This needs to change. So that it is more in line with what I am doing.
+    let mut func_ast = Ast::new(Token::new_preset('('.to_string(), Type::Oparen));
+    func_ast.push_child(Ast::new(Token::new_preset("let".to_string(), Type::Func)));
     func_ast.push_child(Ast::new(tok));
     func_ast.push_child(ast);
     func_ast
