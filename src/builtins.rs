@@ -165,7 +165,20 @@ fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     EvalResult::Ignore
 }
 
-fn let_eval(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> { // Implement this when the other stuff is ready.
+fn let_eval(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
+    let mut children = ast.dump_children();
+    let name = children.remove(0).get_child(0).unwrap().node_val.unwrap().get_lexed();
+    if {
+        match scope.find_func(&name) {
+            Some(func_option) => {
+                func_option.reset(Ast::new_null(), children.remove(0).get_child(0).unwrap());
+                false
+            },
+            None => true
+        }
+    } {
+        scope.insert_func_no_search(Func::new(name, Ast::new_null(), children.remove(0)));
+    }
     EvalResult::Ignore
 }
 
@@ -203,7 +216,7 @@ pub fn evaluate_set_funcs(mut ast: Ast) -> SetEval<Ast> {
 pub fn evaluate_set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     match ast.get_child(0) {
         Some(mut child) => {
-            let mut node = child.node_val.unwrap();
+            let node = child.node_val.unwrap();
             match node.get_lexed().borrow() {
                 "seteval" => set(ast, scope),
                 "leteval" => let_eval(ast, scope),
@@ -220,7 +233,9 @@ pub fn evaluate_set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
 
 pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
     match ast.get_child(0) {
-        Some(child) => {
+        Some(mut child) => {
+            let node = child.node_val.unwrap();
+            child.node_val = Some(node);
             match child.node_val.unwrap().get_lexed().borrow() {
                 "print" => print(ast),
                 "println" => println(ast),
@@ -232,10 +247,20 @@ pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
     }
 }
 
-pub fn generate_let_ast(tok: Token, ast: Ast) -> Ast { // This needs to change. So that it is more in line with what I am doing.
+pub fn generate_let_ast(tok: Token, ast: Ast) -> Ast {
     let mut func_ast = Ast::new(Token::new_preset('('.to_string(), Type::Oparen));
     func_ast.push_child(Ast::new(Token::new_preset("let".to_string(), Type::Func)));
-    func_ast.push_child(Ast::new(tok));
-    func_ast.push_child(ast);
+    func_ast.push_child({
+        let mut func_name = Ast::new(Token::new_preset('('.to_string(), Type::Oparen));
+        func_name.push_child(Ast::new(Token::new_preset("name".to_string(), Type::Func)));
+        func_name.push_child(Ast::new(tok));
+        func_name
+    });
+    func_ast.push_child({
+        let mut func_body = Ast::new(Token::new_preset('('.to_string(), Type::Oparen));
+        func_body.push_child(Ast::new(Token::new_preset("body".to_string(), Type::Func)));
+        func_body.push_child(ast);
+        func_body
+    });
     func_ast
 }

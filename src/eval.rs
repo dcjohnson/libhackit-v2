@@ -135,7 +135,13 @@ impl Eval {
                         let mut child = current.0.get_child(0).unwrap();
                         let node_val = child.node_val.unwrap();
                         match scope.find_func(&node_val.get_lexed()) {
-                            Some(func) => self.inject_params(func),
+                            Some(func) => {
+                                if !self.inject_params(func, &mut current.0) {
+                                    current.0 = func.body.clone();
+                                }
+                                self.stack.push(current);
+                                true
+                            },
                             None => {
                                 child.node_val = Some(node_val);
                                 current.0.insert_child(child, 0);
@@ -154,19 +160,17 @@ impl Eval {
         }
     }
 
-    fn inject_params(&mut self, func: &Func) -> bool {
-        match self.stack.pop() {
-            Some(mut current) => {
-                let mut current_children = current.0.dump_children();
-                let func_children = func.params.clone_children();
-                for child in func_children.into_iter() {
-                    current.0.push_child(builtins::generate_let_ast(child.node_val.unwrap(), current_children.remove(0)));
-                }
-                current.0.push_child(func.body.clone());
-                self.stack.push(current);
-                true
-            },
-            None => false
+    fn inject_params(&mut self, func: &Func, current: &mut Ast) -> bool {
+        let mut current_children = current.dump_children();
+        let func_children = func.params.clone_children();
+        if func_children.is_empty() {
+            false
+        } else {
+            for child in func_children.into_iter() {
+                current.push_child(builtins::generate_let_ast(child.node_val.unwrap(), current_children.remove(0)));
+            }
+            current.push_child(func.body.clone());
+            true
         }
     }
 
@@ -287,12 +291,7 @@ impl Eval {
                                     self.stack.push(parent);
                                     self.stack.push((new_child.unwrap(), new_index));
                                 } else {
-                                    let result = builtins::evaluate_builtin(parent.0);
-                                    if result.is_push() {
-                                        self.stack.push((result.unwrap_push(), parent.1));
-                                    } else if result.is_error() {
-                                        self.evaluated = true;
-                                    }
+                                    self.handle_builtin(parent);
                                 }
                             },
                             None => self.evaluated = true
