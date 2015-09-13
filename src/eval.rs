@@ -256,7 +256,7 @@ impl Eval {
                         parent.0.insert_child(child, 0);
                         self.stack.push(parent);
                     },
-                    None => panic!()
+                    None => self.evaluated = true
                 }
                 self.handle_function(&mut scope);
             } else if tok.tok_type == Type::Oparen {
