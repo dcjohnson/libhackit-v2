@@ -127,25 +127,151 @@ fn println(mut ast: Ast) -> EvalResult<Ast> {
 }
 
 fn add(mut ast: Ast) -> EvalResult<Ast> {
-    let mut int: i64 = 0;
-    let mut double: f64 = 0.0;
-    for child in ast.dump_children().into_iter() {
-        let child_val = child.node_val.unwrap().get_lexed();
-        match child_val.parse::<i64>() {
-            Ok(val) => int += val,
+    if ast.child_count() > 0 {
+        let mut int: i64 = 0;
+        let mut double: f64 = 0.0;
+        for child in ast.dump_children().into_iter() {
+            let child_val = child.node_val.unwrap().get_lexed();
+            match child_val.parse::<i64>() {
+                Ok(val) => int += val,
+                _ => {
+                    match child_val.parse::<f64>() {
+                        Ok(val) => double += val,
+                        _ => return EvalResult::Error
+                    }
+                }
+            }
+        }
+        ast.node_val = Some(match double == 0.0 {
+            true => Token::new_preset(int.to_string(), Type::Number),
+            false => Token::new_preset((double + int as f64).to_string(), Type::Number)
+        });
+        EvalResult::Push(ast)
+
+    } else {
+        EvalResult::Error
+    }
+}
+
+fn sub(mut ast: Ast) -> EvalResult<Ast> {
+    if ast.child_count() > 0 {
+        let mut int: i64 = 0;
+        let mut double: f64 = 0.0;
+
+        let mut children = ast.dump_children();
+        let first = children.remove(0).node_val.unwrap().get_lexed();
+        match first.parse::<i64>() {
+            Ok(val) => int = val,
             _ => {
-                match child_val.parse::<f64>() {
-                    Ok(val) => double += val,
+                match first.parse::<f64>() {
+                    Ok(val) => double = val,
                     _ => return EvalResult::Error
                 }
             }
         }
+
+        for child in children.into_iter() {
+            let child_val = child.node_val.unwrap().get_lexed();
+            match child_val.parse::<i64>() {
+                Ok(val) => int -= val,
+                _ => {
+                    match child_val.parse::<f64>() {
+                        Ok(val) => double -= val,
+                        _ => return EvalResult::Error
+                    }
+                }
+            }
+        }
+        ast.node_val = Some(match double == 0.0 {
+            true => Token::new_preset(int.to_string(), Type::Number),
+            false => Token::new_preset((double + int as f64).to_string(), Type::Number)
+        });
+        EvalResult::Push(ast)
+    } else {
+        EvalResult::Error
     }
-    ast.node_val = Some(match double == 0.0 {
-        true => Token::new_preset(int.to_string(), Type::Number),
-        false => Token::new_preset((double + int as f64).to_string(), Type::Number)
-    });
-    EvalResult::Push(ast)
+}
+
+fn mult(mut ast: Ast) -> EvalResult<Ast> {
+    if ast.child_count() > 0 {
+        let mut int: i64 = 1;
+        let mut double: f64 = 1.0;
+
+        for child in ast.dump_children().into_iter() {
+            let child_val = child.node_val.unwrap().get_lexed();
+            match child_val.parse::<i64>() {
+                Ok(val) => int *= val,
+                _ => {
+                    match child_val.parse::<f64>() {
+                        Ok(val) => double *= val,
+                        _ => return EvalResult::Error
+                    }
+                }
+            }
+        }
+        ast.node_val = Some(match double == 1.0 {
+            true => Token::new_preset(int.to_string(), Type::Number),
+            false => Token::new_preset((double * int as f64).to_string(), Type::Number)
+        });
+        EvalResult::Push(ast)
+    } else {
+        EvalResult::Error
+    }
+}
+
+fn div(mut ast: Ast) -> EvalResult<Ast> {
+    if ast.child_count() > 0 {
+        let mut int: i64 = 1;
+        let mut double: f64 = 1.0;
+        let mut is_int = true;
+
+        let mut children = ast.dump_children();
+        let first = children.remove(0).node_val.unwrap().get_lexed();
+        match first.parse::<i64>() {
+            Ok(val) => int = val,
+            _ => {
+                match first.parse::<f64>() {
+                    Ok(val) => {
+                        double = val;
+                        is_int = !is_int;
+                    },
+                    _ => return EvalResult::Error
+                }
+            }
+        }
+
+        for child in children.into_iter() {
+            let child_val = child.node_val.unwrap().get_lexed();
+            match child_val.parse::<i64>() {
+                Ok(val) => {
+                    if is_int {
+                        int /= val;
+                    } else {
+                        double /= val as f64;
+                    }
+                },
+                _ => {
+                    match child_val.parse::<f64>() {
+                        Ok(val) => {
+                            if is_int {
+                                is_int = !is_int;
+                                double = int as f64;
+                            }
+                            double /= val;
+                        },
+                        _ => return EvalResult::Error
+                    }
+                }
+            }
+        }
+        ast.node_val = Some(match is_int {
+            true => Token::new_preset(int.to_string(), Type::Number),
+            false => Token::new_preset(double.to_string(), Type::Number)
+        });
+        EvalResult::Push(ast)
+    } else {
+        EvalResult::Error
+    }
 }
 
 fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
@@ -240,6 +366,9 @@ pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
                 "print" => print(ast),
                 "println" => println(ast),
                 "add" => add(ast),
+                "sub" => sub(ast),
+                "mult" => mult(ast),
+                "div" => div(ast),
                 _ => EvalResult::Ignore
             }
         },
