@@ -1,6 +1,6 @@
 use token::{Token, Type};
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Ast {
     pub node_val: Option<Token>,
     child_nodes: Vec<Ast>
@@ -90,3 +90,7 @@ impl Ast {
         }
     }
 }
+
+// impl PartialEq for Ast {
+//
+// }

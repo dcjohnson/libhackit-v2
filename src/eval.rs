@@ -2,7 +2,6 @@ use ast::{Ast, AstTrait};
 use token::{TokenTrait, Type};
 use builtins;
 use std::ops::IndexMut;
-use std::cmp::Ordering;
 
 pub struct Eval {
     ast: Ast,
@@ -367,6 +366,7 @@ impl Scope {
     }
 }
 
+#[derive(Eq, PartialEq, Ord, PartialOrd)]
 pub struct Func {
     name: String,
     pub params: Ast,
@@ -389,29 +389,5 @@ impl Func {
     pub fn reset(&mut self, params: Ast, body: Ast) {
         self.params = params;
         self.body = body;
-    }
-}
-
-impl Ord for Func {
-    fn cmp(&self, other: &Func) -> Ordering {
-        self.name.cmp(other.get_name())
-    }
-}
-
-impl PartialOrd for Func {
-    fn partial_cmp(&self, other: &Func) -> Option<Ordering> {
-        self.name.partial_cmp(other.get_name())
-    }
-}
-
-impl Eq for Func { }
-
-impl PartialEq for Func {
-    fn eq(&self, other: &Func) -> bool {
-        self.name.eq(other.get_name())
-    }
-
-    fn ne(&self, other: &Func) -> bool {
-        self.name.ne(other.get_name())
     }
 }

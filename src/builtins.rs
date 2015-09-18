@@ -274,6 +274,27 @@ fn div(mut ast: Ast) -> EvalResult<Ast> {
     }
 }
 
+fn if_func(mut ast: Ast) -> EvalResult<Ast> {
+    let mut children = ast.dump_children();
+    let true_false = children.remove(0).get_child(0).unwrap().node_val.unwrap();
+    if true_false.get_lexed() == "true" {
+        EvalResult::Insert(children.remove(0))
+    } else if true_false.get_lexed() == "false" {
+        EvalResult::Insert(children.remove(1))
+    } else {
+        EvalResult::Error
+    }
+}
+
+fn eq(mut ast: Ast) -> EvalResult<Ast> {
+    let mut children = ast.dump_children();
+    if children.remove(0) == children.remove(0) {
+        EvalResult::Insert(generate_true())
+    } else {
+        EvalResult::Insert(generate_false())
+    }
+}
+
 fn set(mut ast: Ast, scope: &mut Scope) -> EvalResult<Ast> {
     let mut children = ast.dump_children();
     let name = children.remove(0).get_child(0).unwrap().node_val.unwrap().get_lexed();
@@ -369,6 +390,8 @@ pub fn evaluate_builtin(mut ast: Ast) -> EvalResult<Ast> {
                 "sub" => sub(ast),
                 "mult" => mult(ast),
                 "div" => div(ast),
+                "if" => if_func(ast),
+                "eq" => eq(ast),
                 _ => EvalResult::Ignore
             }
         },
@@ -392,4 +415,12 @@ pub fn generate_let_ast(tok: Token, ast: Ast) -> Ast {
         func_body
     });
     func_ast
+}
+
+pub fn generate_true() -> Ast {
+    Ast::new(Token::new_preset("true".to_string(), Type::StrType))
+}
+
+pub fn generate_false() -> Ast {
+    Ast::new(Token::new_preset("false".to_string(), Type::StrType))
 }

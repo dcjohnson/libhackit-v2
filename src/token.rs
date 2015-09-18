@@ -1,6 +1,6 @@
 use std::string::String;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Type {
     Oparen,
     Cparen,
@@ -34,7 +34,7 @@ pub enum LexResult {
     Fail
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Token {
     lexed: String,
     pub tok_type: Type,
